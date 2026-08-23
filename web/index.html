@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>溫室物品進出管理系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f4f6f3;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- Toast 通知容器 -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- 導覽列 -->
+    <nav class="bg-emerald-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center gap-2">
+                        <i class="fa-solid fa-seedling text-2xl text-lime-400"></i>
+                        <span class="text-xl font-bold tracking-wider">溫室智慧庫存管理</span>
+                    </div>
+                    <div class="hidden md:block">
+                        <div class="ml-10 flex items-baseline space-x-4">
+                            <button onclick="switchTab('stock-tab')" id="nav-stock-tab" class="tab-btn px-3 py-2 rounded-md text-sm font-medium bg-emerald-800 text-white"><i class="fa-solid fa-boxes-stacked mr-1"></i>即時庫存</button>
+                            <button onclick="switchTab('transaction-tab')" id="nav-transaction-tab" class="tab-btn px-3 py-2 rounded-md text-sm font-medium text-emerald-100 hover:bg-emerald-600 hover:text-white"><i class="fa-solid fa-exchange-alt mr-1"></i>進出登記</button>
+                            <button onclick="switchTab('items-tab')" id="nav-items-tab" class="tab-btn px-3 py-2 rounded-md text-sm font-medium text-emerald-100 hover:bg-emerald-600 hover:text-white"><i class="fa-solid fa-list mr-1"></i>品項管理</button>
+                            <button onclick="switchTab('history-tab')" id="nav-history-tab" class="tab-btn px-3 py-2 rounded-md text-sm font-medium text-emerald-100 hover:bg-emerald-600 hover:text-white"><i class="fa-solid fa-history mr-1"></i>進出明細</button>
+                            <button onclick="switchTab('report-tab')" id="nav-report-tab" class="tab-btn px-3 py-2 rounded-md text-sm font-medium text-emerald-100 hover:bg-emerald-600 hover:text-white"><i class="fa-solid fa-file-invoice mr-1"></i>月底報表</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center text-sm text-emerald-100 bg-emerald-800 px-3 py-1 rounded-full">
+                    <i class="fa-regular fa-clock mr-1.5"></i>
+                    <span id="current-time"></span>
+                </div>
+            </div>
+        </div>
+        <!-- 行動版導覽按鈕 (底部或折疊) -->
+        <div class="md:hidden flex justify-around bg-emerald-800 py-2 text-xs border-t border-emerald-600">
+            <button onclick="switchTab('stock-tab')" class="mobile-tab-btn flex flex-col items-center text-white" id="m-nav-stock-tab"><i class="fa-solid fa-boxes-stacked mb-1"></i>庫存</button>
+            <button onclick="switchTab('transaction-tab')" class="mobile-tab-btn flex flex-col items-center text-emerald-300" id="m-nav-transaction-tab"><i class="fa-solid fa-exchange-alt mb-1"></i>登記</button>
+            <button onclick="switchTab('items-tab')" class="mobile-tab-btn flex flex-col items-center text-emerald-300" id="m-nav-items-tab"><i class="fa-solid fa-list mb-1"></i>品項</button>
+            <button onclick="switchTab('history-tab')" class="mobile-tab-btn flex flex-col items-center text-emerald-300" id="m-nav-history-tab"><i class="fa-solid fa-history mb-1"></i>明細</button>
+            <button onclick="switchTab('report-tab')" class="mobile-tab-btn flex flex-col items-center text-emerald-300" id="m-nav-report-tab"><i class="fa-solid fa-file-invoice mb-1"></i>報表</button>
+        </div>
+    </nav>
+
+    <!-- 主內容區 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- ================= TAB 1: 即時庫存 ================= -->
+        <section id="stock-tab" class="tab-content">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">溫室即時庫存</h1>
+                    <p class="text-sm text-gray-500 mt-1">查看三間溫室中各物品的目前剩餘量。</p>
+                </div>
+                <!-- 溫室切換 Tab -->
+                <div class="flex bg-white rounded-lg p-1 shadow-sm border border-gray-200 self-start" id="greenhouse-tab-headers">
+                    <!-- 動態載入溫室 -->
+                </div>
+            </div>
+
+            <!-- 庫存表格區 -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-700" id="current-gh-title">溫室庫存</h2>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800" id="stock-count-tag">0 項物品</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品項名稱</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">品項編碼 (SKU)</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">單位</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">目前庫存量</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">快速操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="stock-table-body">
+                            <!-- 動態載入庫存資料 -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- 空資料狀態 -->
+                <div id="stock-empty-state" class="hidden flex flex-col items-center justify-center py-16 text-gray-400">
+                    <i class="fa-solid fa-inbox text-5xl mb-4 text-gray-300"></i>
+                    <p class="text-lg font-medium">此溫室目前沒有任何庫存</p>
+                    <p class="text-sm mt-1">請切換至「進出登記」登記物品進庫。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: 進出登記 ================= -->
+        <section id="transaction-tab" class="tab-content hidden">
+            <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+                <div class="bg-emerald-600 px-6 py-4 text-white">
+                    <h2 class="text-xl font-bold"><i class="fa-solid fa-exchange-alt mr-2"></i>物品進出庫登記</h2>
+                    <p class="text-emerald-100 text-sm mt-1">在此記錄物品移入或移出溫室。</p>
+                </div>
+                <form id="transaction-form" onsubmit="submitTransaction(event)" class="p-6 space-y-4">
+                    <!-- 選擇溫室 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">溫室名稱 <span class="text-red-500">*</span></label>
+                        <select id="tx-greenhouse" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                            <!-- 動態載入 -->
+                        </select>
+                    </div>
+
+                    <!-- 選擇品項 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">品項名稱 <span class="text-red-500">*</span></label>
+                        <select id="tx-item" required onchange="updateTxUnit()" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                            <!-- 動態載入 -->
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1" id="tx-item-hint">請先在「品項管理」中新增物品品項。</p>
+                    </div>
+
+                    <!-- 類型與數量 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">操作類型 <span class="text-red-500">*</span></label>
+                            <div class="flex gap-4">
+                                <label class="flex-1 flex items-center justify-center px-4 py-2.5 border rounded-md cursor-pointer transition-all hover:bg-gray-50 border-gray-300 font-medium text-gray-700 select-none text-center" id="tx-type-in-label">
+                                    <input type="radio" name="tx_type" value="IN" checked onchange="toggleTxTypeStyle()" class="sr-only">
+                                    <i class="fa-solid fa-arrow-down-long text-emerald-600 mr-2"></i> 物品進庫
+                                </label>
+                                <label class="flex-1 flex items-center justify-center px-4 py-2.5 border rounded-md cursor-pointer transition-all hover:bg-gray-50 border-gray-300 font-medium text-gray-700 select-none text-center" id="tx-type-out-label">
+                                    <input type="radio" name="tx_type" value="OUT" onchange="toggleTxTypeStyle()" class="sr-only">
+                                    <i class="fa-solid fa-arrow-up-long text-red-600 mr-2"></i> 物品出庫
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">數量 <span class="text-red-500">*</span></label>
+                            <div class="relative rounded-md shadow-sm">
+                                <input type="number" id="tx-quantity" min="0.01" step="any" required class="w-full rounded-md border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="請輸入正數">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-500 sm:text-sm" id="tx-unit-span">單位</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 經手人 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">經手人 <span class="text-red-500">*</span></label>
+                        <input type="text" id="tx-operator" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="輸入姓名">
+                    </div>
+
+                    <!-- 備註 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">備註說明 (用途/原因)</label>
+                        <input type="text" id="tx-note" list="note-suggestions" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="例如：施肥使用、採收進貨、客戶購買、損耗">
+                        <datalist id="note-suggestions">
+                            <option value="進貨採購">
+                            <option value="採收登記">
+                            <option value="施肥使用">
+                            <option value="噴藥除蟲">
+                            <option value="包裝材料耗損">
+                            <option value="客戶出貨">
+                            <option value="溫室間移轉">
+                            <option value="過期報廢">
+                        </datalist>
+                    </div>
+
+                    <!-- 進出庫日期 (可回溯時間) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">登記日期與時間</label>
+                        <input type="datetime-local" id="tx-date" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                        <p class="text-xs text-gray-400 mt-1">預設為當前時間。若要補登過往帳目，請手動調整。</p>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-100 flex gap-4">
+                        <button type="button" onclick="resetTxForm()" class="w-1/3 px-4 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                            重設表單
+                        </button>
+                        <button type="submit" class="w-2/3 px-4 py-2.5 bg-emerald-600 border border-transparent rounded-md text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500">
+                            送出登記
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: 品項管理 ================= -->
+        <section id="items-tab" class="tab-content hidden">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">物品品項管理</h1>
+                    <p class="text-sm text-gray-500 mt-1">設定與管理溫室所使用的物品主檔（如肥料、農藥、種子、資材）。</p>
+                </div>
+                <button onclick="openItemModal(false)" class="bg-emerald-600 text-white px-4 py-2.5 rounded-md hover:bg-emerald-700 transition shadow flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> 新增物品品項
+                </button>
+            </div>
+
+            <!-- 品項列表 -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-700">登記品項列表</h2>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800" id="items-count-tag">共 0 項</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品項名稱</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">品項編碼 (SKU)</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">單位</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">說明備註</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">管理操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="items-table-body">
+                            <!-- 動態載入品項資料 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="items-empty-state" class="hidden flex flex-col items-center justify-center py-16 text-gray-400">
+                    <i class="fa-solid fa-tags text-5xl mb-4 text-gray-300"></i>
+                    <p class="text-lg font-medium">目前尚無品項資料</p>
+                    <p class="text-sm mt-1">請點擊上方「新增物品品項」按鈕開始建立。</p>
+                </div>
+            </div>
+
+            <!-- 品項編輯/新增彈出視窗 -->
+            <div id="item-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center hidden">
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+                    <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center">
+                        <h3 class="text-lg font-bold" id="item-modal-title">新增品項</h3>
+                        <button onclick="closeItemModal()" class="text-white hover:text-gray-200"><i class="fa-solid fa-times"></i></button>
+                    </div>
+                    <form id="item-form" onsubmit="saveItem(event)" class="p-6 space-y-4">
+                        <input type="hidden" id="item-id">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">品項名稱 <span class="text-red-500">*</span></label>
+                            <input type="text" id="item-name" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="如：有機堆肥、大番茄種子">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">品項編碼 (SKU/條碼)</label>
+                            <input type="text" id="item-sku" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="如：FERT-001">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">單位 <span class="text-red-500">*</span></label>
+                            <input type="text" id="item-unit" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="如：包、公斤、公克、個">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">說明備註</label>
+                            <textarea id="item-description" rows="3" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="品項的詳細規格或備註資訊"></textarea>
+                        </div>
+                        <div class="pt-4 border-t border-gray-100 flex justify-end gap-3">
+                            <button type="button" onclick="closeItemModal()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">取消</button>
+                            <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700">儲存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: 進出明細 ================= -->
+        <section id="history-tab" class="tab-content hidden">
+            <!-- 篩選列 -->
+            <div class="bg-white rounded-lg shadow p-5 mb-6">
+                <h2 class="text-lg font-semibold text-gray-700 mb-4"><i class="fa-solid fa-filter mr-2"></i>明細進階篩選</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">選擇溫室</label>
+                        <select id="filter-greenhouse" class="w-full rounded-md border-gray-300 p-2 border text-sm" onchange="loadHistoryData()">
+                            <option value="">-- 全部溫室 --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">操作類型</label>
+                        <select id="filter-type" class="w-full rounded-md border-gray-300 p-2 border text-sm" onchange="loadHistoryData()">
+                            <option value="">-- 全部類型 --</option>
+                            <option value="IN">進庫 (IN)</option>
+                            <option value="OUT">出庫 (OUT)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">開始日期</label>
+                        <input type="date" id="filter-start-date" class="w-full rounded-md border-gray-300 p-2 border text-sm" onchange="loadHistoryData()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">結束日期</label>
+                        <input type="date" id="filter-end-date" class="w-full rounded-md border-gray-300 p-2 border text-sm" onchange="loadHistoryData()">
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                    <button onclick="clearHistoryFilters()" class="text-sm text-gray-500 hover:text-emerald-600 transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-left"></i> 重設篩選條件
+                    </button>
+                </div>
+            </div>
+
+            <!-- 明細表格 -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-700">進出庫交易明細</h2>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800" id="history-count-tag">顯示前 100 筆</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登記時間</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">溫室</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">類型</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品項名稱</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">數量</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">單位</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">經手人</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="history-table-body">
+                            <!-- 動態載入歷史明細 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="history-empty-state" class="hidden flex flex-col items-center justify-center py-16 text-gray-400">
+                    <i class="fa-solid fa-receipt text-5xl mb-4 text-gray-300"></i>
+                    <p class="text-lg font-medium">沒有符合條件的明細紀錄</p>
+                    <p class="text-sm mt-1">請嘗試放寬篩選範圍，或前往「進出登記」新增明細。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 5: 月底報表 ================= -->
+        <section id="report-tab" class="tab-content hidden">
+            <!-- 報表控制台 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- 報表月份選擇與下載 -->
+                <div class="bg-white rounded-lg shadow p-6 flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-700 mb-2"><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i>選擇報表月份</h2>
+                        <p class="text-sm text-gray-500 mb-4">系統會根據所選的月份，自動彙算每一間溫室的期初、本期進出及期末餘額。</p>
+                        
+                        <div class="flex gap-4 mb-4">
+                            <input type="month" id="report-month" class="flex-grow rounded-md border-gray-300 p-2.5 border text-base font-semibold focus:border-emerald-500 focus:ring-emerald-500" value="2026-08">
+                            <button onclick="loadReportData()" class="bg-emerald-600 text-white px-5 rounded-md hover:bg-emerald-700 transition font-medium">
+                                查詢
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button onclick="downloadExcelReport()" class="w-full bg-emerald-700 text-white py-3 rounded-md hover:bg-emerald-800 transition font-semibold flex items-center justify-center gap-2 shadow mt-4">
+                        <i class="fa-regular fa-file-excel text-lg"></i> 匯出精美 Excel 月報表
+                    </button>
+                </div>
+
+                <!-- 庫存流動可視化圖表 -->
+                <div class="bg-white rounded-lg shadow p-6 lg:col-span-2 flex flex-col">
+                    <h3 class="text-md font-semibold text-gray-700 mb-2">當月前 10 大進出庫項目分析</h3>
+                    <div class="flex-grow relative h-48 w-full">
+                        <canvas id="report-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 月報表預覽明細 -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="p-5 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-700" id="report-preview-title">2026年08月 庫存流動月報表預覽</h2>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800" id="report-records-count">共 0 筆明細</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">溫室名稱</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品項名稱</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">品項編碼 (SKU)</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">單位</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">期初庫存</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-emerald-600 uppercase tracking-wider">本月進庫 (+)</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-red-600 uppercase tracking-wider">本月出庫 (-)</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-900 uppercase tracking-wider bg-emerald-50">期末庫存</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="report-table-body">
+                            <!-- 動態載入報表資料 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="report-empty-state" class="hidden flex flex-col items-center justify-center py-16 text-gray-400">
+                    <i class="fa-solid fa-calendar-xmark text-5xl mb-4 text-gray-300"></i>
+                    <p class="text-lg font-medium">此月份沒有任何物品進出或期初庫存紀錄</p>
+                    <p class="text-sm mt-1">請選擇其他月份，或開始登記資料。</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="bg-white border-t border-gray-200 py-4 mt-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-gray-400 flex flex-col md:flex-row md:justify-between items-center gap-2">
+            <div>&copy; 2026 溫室物品進出庫管理系統. All Rights Reserved.</div>
+            <div class="flex gap-4">
+                <span>SQLite 資料庫</span>
+                <span>•</span>
+                <span>自動生成 Excel 月報表</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= JAVASCRIPT 邏輯 ================= -->
+    <script>
+        // 全域狀態
+        let greenhouses = [];
+        let items = [];
+        let currentGreenhouseId = null;
+        let chartInstance = null;
+
+        // 當頁面載入完成
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 初始化時鐘
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // 預設將登記表單日期設為今天
+            setTodayDateTime();
+
+            // 預設月報表月份設為當前月
+            const now = new Date();
+            const yearStr = now.getFullYear();
+            const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+            document.getElementById('report-month').value = `${yearStr}-${monthStr}`;
+
+            // 初始化載入資料
+            await loadBaseData();
+            
+            // 預設載入即時庫存
+            if (greenhouses.length > 0) {
+                renderGreenhouseTabs();
+                selectGreenhouse(greenhouses[0].id);
+            }
+        });
+
+        // 顯示 Toast 訊息
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `flex items-center p-4 rounded-lg shadow-md border text-sm transition-all duration-300 transform translate-y-2 opacity-0 w-80 ${
+                type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'
+            }`;
+            
+            const icon = type === 'success' ? 'fa-circle-check text-emerald-500' : 'fa-triangle-exclamation text-red-500';
+            toast.innerHTML = `
+                <i class="fa-solid ${icon} text-lg mr-3"></i>
+                <div class="flex-grow">${message}</div>
+                <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 ml-2"><i class="fa-solid fa-times"></i></button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // 動畫劃入
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+            
+            // 4秒後自動消失
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // 時鐘更新
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('current-time').innerText = now.toLocaleString('zh-TW', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            });
+        }
+
+        // 設定表單當日時間
+        function setTodayDateTime() {
+            const now = new Date();
+            const offset = now.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+            document.getElementById('tx-date').value = localISOTime;
+        }
+
+        // 載入基本溫室與品項清單
+        async function loadBaseData() {
+            try {
+                // 載入溫室
+                const resGH = await fetch('/api/greenhouses');
+                greenhouses = await resGH.json();
+                
+                // 載入品項
+                const resItems = await fetch('/api/items');
+                items = await resItems.json();
+                
+                // 更新下拉選單
+                populateDropdowns();
+            } catch (err) {
+                console.error("載入基礎資料失敗：", err);
+                showToast("載入基礎資料失敗，請確認伺服器是否正常啟動", "error");
+            }
+        }
+
+        // 填充下拉選單內容
+        function populateDropdowns() {
+            // 1. 登記表單中的溫室下拉
+            const txGH = document.getElementById('tx-greenhouse');
+            txGH.innerHTML = greenhouses.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            
+            // 2. 登記表單中的品項下拉
+            const txItem = document.getElementById('tx-item');
+            if (items.length > 0) {
+                txItem.innerHTML = items.map(i => `<option value="${i.id}">${i.name} (${i.unit})</option>`).join('');
+                updateTxUnit();
+            } else {
+                txItem.innerHTML = '<option value="">-- 請先新增品項 --</option>';
+            }
+
+            // 3. 進出明細的篩選溫室
+            const filterGH = document.getElementById('filter-greenhouse');
+            filterGH.innerHTML = '<option value="">-- 全部溫室 --</option>' + 
+                greenhouses.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+        }
+
+        // 變更登記品項時更新右側單位標籤
+        function updateTxUnit() {
+            const txItemSelect = document.getElementById('tx-item');
+            const selectedId = parseInt(txItemSelect.value);
+            const found = items.find(i => i.id === selectedId);
+            if (found) {
+                document.getElementById('tx-unit-span').innerText = found.unit;
+            }
+        }
+
+        // 切換主頁籤 Tab
+        function switchTab(tabId) {
+            // 隱藏所有
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // 顯示當前
+            document.getElementById(tabId).classList.remove('hidden');
+
+            // 樣式切換 - 桌機版
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-emerald-800', 'text-white');
+                btn.classList.add('text-emerald-100', 'hover:bg-emerald-600');
+            });
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-emerald-100', 'hover:bg-emerald-600');
+                activeBtn.classList.add('bg-emerald-800', 'text-white');
+            }
+
+            // 樣式切換 - 行動版
+            document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+                btn.classList.remove('text-white');
+                btn.classList.add('text-emerald-300');
+            });
+            const activeMobileBtn = document.getElementById(`m-nav-${tabId}`);
+            if (activeMobileBtn) {
+                activeMobileBtn.classList.remove('text-emerald-300');
+                activeMobileBtn.classList.add('text-white');
+            }
+
+            // 切換時的專屬資料載入
+            if (tabId === 'stock-tab') {
+                if (currentGreenhouseId) selectGreenhouse(currentGreenhouseId);
+            } else if (tabId === 'items-tab') {
+                loadItemsData();
+            } else if (tabId === 'history-tab') {
+                loadHistoryData();
+            } else if (tabId === 'report-tab') {
+                loadReportData();
+            }
+        }
+
+        // ================= JAVASCRIPT: TAB 1 即時庫存邏輯 =================
+
+        // 渲染即時庫存的溫室切換按鈕
+        function renderGreenhouseTabs() {
+            const container = document.getElementById('greenhouse-tab-headers');
+            container.innerHTML = greenhouses.map((g, idx) => `
+                <button onclick="selectGreenhouse(${g.id})" id="gh-tab-${g.id}" class="gh-tab-btn px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                    idx === 0 ? 'bg-emerald-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                }">
+                    ${g.name}
+                </button>
+            `).join('');
+        }
+
+        // 切換即時庫存溫室
+        async function selectGreenhouse(ghId) {
+            currentGreenhouseId = ghId;
+            
+            // 切換按鈕高亮
+            document.querySelectorAll('.gh-tab-btn').forEach(btn => {
+                btn.classList.remove('bg-emerald-600', 'text-white');
+                btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+            const activeBtn = document.getElementById(`gh-tab-${ghId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                activeBtn.classList.add('bg-emerald-600', 'text-white');
+            }
+
+            const activeGh = greenhouses.find(g => g.id === ghId);
+            if (activeGh) {
+                document.getElementById('current-gh-title').innerText = `${activeGh.name} 即時庫存明細`;
+            }
+
+            // 向後端請求此溫室庫存
+            try {
+                const res = await fetch(`/api/stock?greenhouse_id=${ghId}`);
+                const stockData = await res.json();
+                renderStockTable(stockData);
+            } catch (err) {
+                console.error(err);
+                showToast("載入溫室庫存資料失敗", "error");
+            }
+        }
+
+        // 渲染庫存表格
+        function renderStockTable(stockList) {
+            const tbody = document.getElementById('stock-table-body');
+            const emptyState = document.getElementById('stock-empty-state');
+            const tag = document.getElementById('stock-count-tag');
+            
+            tbody.innerHTML = '';
+            
+            if (stockList.length === 0) {
+                emptyState.classList.remove('hidden');
+                tag.innerText = "0 項物品";
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            tag.innerText = `${stockList.length} 項物品`;
+            
+            stockList.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">${item.item_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${item.item_sku || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${item.item_unit}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-right text-emerald-700">${item.current_stock.toLocaleString('zh-TW')}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div class="flex justify-center gap-3">
+                            <button onclick="quickAction(${item.item_id}, 'IN')" class="text-emerald-600 hover:text-emerald-900 transition flex items-center gap-0.5"><i class="fa-solid fa-square-plus"></i> 進庫</button>
+                            <button onclick="quickAction(${item.item_id}, 'OUT', ${item.current_stock})" class="text-red-600 hover:text-red-900 transition flex items-center gap-0.5"><i class="fa-solid fa-square-minus"></i> 出庫</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 庫存表快速操作：跳轉至登記 Tab 並帶入參數
+        function quickAction(itemId, type, currentStock = 999999) {
+            switchTab('transaction-tab');
+            
+            // 帶入溫室、品項、操作類型
+            document.getElementById('tx-greenhouse').value = currentGreenhouseId;
+            document.getElementById('tx-item').value = itemId;
+            
+            const rBtns = document.getElementsByName('tx_type');
+            rBtns.forEach(btn => {
+                if (btn.value === type) btn.checked = true;
+            });
+            
+            toggleTxTypeStyle();
+            updateTxUnit();
+            
+            // 出庫提示目前庫存
+            if (type === 'OUT') {
+                document.getElementById('tx-quantity').placeholder = `目前最大可出庫: ${currentStock}`;
+            } else {
+                document.getElementById('tx-quantity').placeholder = `請輸入正數`;
+            }
+            
+            document.getElementById('tx-quantity').focus();
+        }
+
+        // ================= JAVASCRIPT: TAB 2 進出登記邏輯 =================
+
+        // 變更登記類型的選取樣式
+        function toggleTxTypeStyle() {
+            const inLabel = document.getElementById('tx-type-in-label');
+            const outLabel = document.getElementById('tx-type-out-label');
+            const rBtns = document.getElementsByName('tx_type');
+            
+            let selectedType = 'IN';
+            rBtns.forEach(btn => {
+                if (btn.checked) selectedType = btn.value;
+            });
+            
+            if (selectedType === 'IN') {
+                inLabel.className = "flex-1 flex items-center justify-center px-4 py-2.5 border rounded-md cursor-pointer transition-all bg-emerald-50 border-emerald-500 font-semibold text-emerald-800 select-none text-center shadow-sm";
+                outLabel.className = "flex-1 flex items-center justify-center px-4 py-2.5 border rounded-md cursor-pointer transition-all hover:bg-gray-50 border-gray-300 font-medium text-gray-700 select-none text-center";
+            } else {
+                outLabel.className = "flex-1 flex items-center justify-center px-4 py-2.5 border rounded-md cursor-pointer transition-all bg-red-50 border-red-500 font-semibold text-red-800 select-none text-center shadow-sm";
+                inLabel.className = "flex-1 flex items-center justify-center px-4 py-2.5 border rounded-md cursor-pointer transition-all hover:bg-gray-50 border-gray-300 font-medium text-gray-700 select-none text-center";
+            }
+        }
+
+        // 重設登記表單
+        function resetTxForm() {
+            document.getElementById('transaction-form').reset();
+            setTodayDateTime();
+            toggleTxTypeStyle();
+            updateTxUnit();
+            document.getElementById('tx-quantity').placeholder = "請輸入正數";
+        }
+
+        // 送出交易登記
+        async function submitTransaction(e) {
+            e.preventDefault();
+            
+            const greenhouseId = parseInt(document.getElementById('tx-greenhouse').value);
+            const itemId = parseInt(document.getElementById('tx-item').value);
+            const quantity = parseFloat(document.getElementById('tx-quantity').value);
+            const operator = document.getElementById('tx-operator').value.trim();
+            const note = document.getElementById('tx-note').value.trim();
+            const dateVal = document.getElementById('tx-date').value;
+            
+            const rBtns = document.getElementsByName('tx_type');
+            let transactionType = 'IN';
+            rBtns.forEach(btn => {
+                if (btn.checked) transactionType = btn.value;
+            });
+            
+            // 驗證
+            if (isNaN(greenhouseId) || isNaN(itemId)) {
+                showToast("請先建立溫室與品項資料", "error");
+                return;
+            }
+            if (isNaN(quantity) || quantity <= 0) {
+                showToast("請輸入大於 0 的有效數量", "error");
+                return;
+            }
+            if (!operator) {
+                showToast("請填寫經手人姓名", "error");
+                return;
+            }
+            
+            // 格式化時間 (將 T 換成空格，並補上秒)
+            let createdAt = "";
+            if (dateVal) {
+                createdAt = dateVal.replace('T', ' ') + ':00';
+            }
+            
+            const payload = {
+                greenhouse_id: greenhouseId,
+                item_id: itemId,
+                transaction_type: transactionType,
+                quantity: quantity,
+                operator: operator,
+                note: note,
+                created_at: createdAt
+            };
+            
+            try {
+                const res = await fetch('/api/transactions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await res.json();
+                if (result.success) {
+                    showToast("交易資料登記成功！");
+                    resetTxForm();
+                    // 記錄目前的溫室，以便切換回庫存時顯示正確溫室庫存
+                    currentGreenhouseId = greenhouseId;
+                } else {
+                    showToast(result.error || "登記失敗", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("伺服器通訊失敗", "error");
+            }
+        }
+
+        // ================= JAVASCRIPT: TAB 3 品項管理邏輯 =================
+
+        // 載入品項清單
+        async function loadItemsData() {
+            try {
+                const res = await fetch('/api/items');
+                items = await res.json();
+                renderItemsTable();
+            } catch (err) {
+                console.error(err);
+                showToast("載入品項列表失敗", "error");
+            }
+        }
+
+        // 渲染品項表格
+        function renderItemsTable() {
+            const tbody = document.getElementById('items-table-body');
+            const emptyState = document.getElementById('items-empty-state');
+            const tag = document.getElementById('items-count-tag');
+            
+            tbody.innerHTML = '';
+            
+            if (items.length === 0) {
+                emptyState.classList.remove('hidden');
+                tag.innerText = "共 0 項";
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            tag.innerText = `共 ${items.length} 項`;
+            
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">${item.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${item.sku || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${item.unit}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">${item.description || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div class="flex justify-center gap-3">
+                            <button onclick="editItem(${item.id})" class="text-blue-600 hover:text-blue-900 transition flex items-center gap-0.5"><i class="fa-solid fa-pen-to-square"></i> 編輯</button>
+                            <button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-900 transition flex items-center gap-0.5"><i class="fa-solid fa-trash-can"></i> 刪除</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 開啟品項 Modal (支援新增與編輯)
+        function openItemModal(isEdit = false) {
+            const modal = document.getElementById('item-modal');
+            const title = document.getElementById('item-modal-title');
+            
+            modal.classList.remove('hidden');
+            
+            if (!isEdit) {
+                title.innerText = "新增物品品項";
+                document.getElementById('item-form').reset();
+                document.getElementById('item-id').value = "";
+            } else {
+                title.innerText = "修改物品品項";
+            }
+        }
+
+        // 關閉品項 Modal
+        function closeItemModal() {
+            document.getElementById('item-modal').classList.add('hidden');
+        }
+
+        // 觸發編輯品項
+        function editItem(itemId) {
+            const item = items.find(i => i.id === itemId);
+            if (!item) return;
+            
+            openItemModal(true);
+            
+            document.getElementById('item-id').value = item.id;
+            document.getElementById('item-name').value = item.name;
+            document.getElementById('item-sku').value = item.sku || '';
+            document.getElementById('item-unit').value = item.unit;
+            document.getElementById('item-description').value = item.description || '';
+        }
+
+        // 儲存品項 (新增 / 修改)
+        async function saveItem(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('item-id').value;
+            const name = document.getElementById('item-name').value.trim();
+            const sku = document.getElementById('item-sku').value.trim();
+            const unit = document.getElementById('item-unit').value.trim();
+            const description = document.getElementById('item-description').value.trim();
+            
+            if (!name || !unit) {
+                showToast("品項名稱與單位為必填項目", "error");
+                return;
+            }
+            
+            const isEdit = !!id;
+            const url = isEdit ? `/api/items?id=${id}` : '/api/items';
+            const method = isEdit ? 'PUT' : 'POST';
+            
+            const payload = { name, sku, unit, description };
+            
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await res.json();
+                if (result.success) {
+                    showToast(isEdit ? "品項修改成功！" : "新增品項成功！");
+                    closeItemModal();
+                    // 重新加載基本資料與列表
+                    await loadBaseData();
+                    renderItemsTable();
+                } else {
+                    showToast(result.error || "儲存失敗", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("伺服器連線失敗", "error");
+            }
+        }
+
+        // 刪除品項
+        async function deleteItem(itemId) {
+            const found = items.find(i => i.id === itemId);
+            if (!found) return;
+            
+            if (!confirm(`確定要刪除品項「${found.name}」嗎？\n此動作無法還原。`)) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/items?id=${itemId}`, { method: 'DELETE' });
+                const result = await res.json();
+                
+                if (result.success) {
+                    showToast("品項刪除成功");
+                    await loadBaseData();
+                    renderItemsTable();
+                } else {
+                    showToast(result.error || "刪除失敗", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("傳送刪除請求失敗", "error");
+            }
+        }
+
+        // ================= JAVASCRIPT: TAB 4 進出明細篩選邏輯 =================
+
+        // 載入歷史進出庫紀錄
+        async function loadHistoryData() {
+            const greenhouseId = document.getElementById('filter-greenhouse').value;
+            const type = document.getElementById('filter-type').value;
+            const startDate = document.getElementById('filter-start-date').value;
+            const endDate = document.getElementById('filter-end-date').value;
+            
+            let query = `limit=100`;
+            if (greenhouseId) query += `&greenhouse_id=${greenhouseId}`;
+            if (type) query += `&transaction_type=${type}`;
+            if (startDate) query += `&start_date=${startDate}`;
+            if (endDate) query += `&end_date=${endDate}`;
+            
+            try {
+                const res = await fetch(`/api/transactions?${query}`);
+                const historyData = await res.json();
+                renderHistoryTable(historyData);
+            } catch (err) {
+                console.error(err);
+                showToast("載入交易明細失敗", "error");
+            }
+        }
+
+        // 渲染明細歷史表格
+        function renderHistoryTable(list) {
+            const tbody = document.getElementById('history-table-body');
+            const emptyState = document.getElementById('history-empty-state');
+            const tag = document.getElementById('history-count-tag');
+            
+            tbody.innerHTML = '';
+            
+            if (list.length === 0) {
+                emptyState.classList.remove('hidden');
+                tag.innerText = "共 0 筆紀錄";
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            tag.innerText = `顯示最近 ${list.length} 筆紀錄`;
+            
+            list.forEach(tx => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors";
+                
+                // 依類型決定樣式
+                const typeBadge = tx.transaction_type === 'IN' 
+                    ? `<span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-arrow-down-long mr-1"></i>進庫</span>`
+                    : `<span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800"><i class="fa-solid fa-arrow-up-long mr-1"></i>出庫</span>`;
+                
+                const qtyVal = tx.transaction_type === 'IN' ? `+${tx.quantity}` : `-${tx.quantity}`;
+                const qtyClass = tx.transaction_type === 'IN' ? 'text-emerald-700 font-bold' : 'text-red-600 font-bold';
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">${tx.created_at}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">${tx.greenhouse_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm">${typeBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-bold">${tx.item_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right ${qtyClass}">${qtyVal}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">${tx.item_unit}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${tx.operator}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title="${tx.note || ''}">${tx.note || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 清空歷史篩選條件
+        function clearHistoryFilters() {
+            document.getElementById('filter-greenhouse').value = "";
+            document.getElementById('filter-type').value = "";
+            document.getElementById('filter-start-date').value = "";
+            document.getElementById('filter-end-date').value = "";
+            loadHistoryData();
+        }
+
+        // ================= JAVASCRIPT: TAB 5 月底報表邏輯 =================
+
+        // 載入月底報表預覽資料與渲染圖表
+        async function loadReportData() {
+            const monthInput = document.getElementById('report-month').value;
+            if (!monthInput) {
+                showToast("請選擇報表月份", "error");
+                return;
+            }
+            
+            const [year, month] = monthInput.split('-');
+            
+            document.getElementById('report-preview-title').innerText = `${year}年${month}月 庫存流動月報表預覽`;
+            
+            try {
+                const res = await fetch(`/api/report?year=${year}&month=${month}`);
+                const reportData = await res.json();
+                renderReportTable(reportData);
+                renderReportChart(reportData);
+            } catch (err) {
+                console.error(err);
+                showToast("獲取月報表數據失敗", "error");
+            }
+        }
+
+        // 渲染報表預覽表格
+        function renderReportTable(list) {
+            const tbody = document.getElementById('report-table-body');
+            const emptyState = document.getElementById('report-empty-state');
+            const countTag = document.getElementById('report-records-count');
+            
+            tbody.innerHTML = '';
+            
+            if (list.length === 0) {
+                emptyState.classList.remove('hidden');
+                countTag.innerText = "共 0 筆明細";
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            countTag.innerText = `共 ${list.length} 筆流動紀錄`;
+            
+            list.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">${row.greenhouse_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">${row.item_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${row.item_sku || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${row.item_unit}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-600 bg-gray-50 font-medium">${row.beginning_stock.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-emerald-600 font-semibold">+${row.month_in.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-500 font-semibold">-${row.month_out.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900 bg-emerald-50 font-bold">${row.ending_stock.toLocaleString()}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 渲染月報表柱狀分析圖
+        function renderReportChart(list) {
+            const ctx = document.getElementById('report-chart').getContext('2d');
+            
+            // 銷毀現有圖表
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            
+            if (list.length === 0) {
+                return;
+            }
+            
+            // 聚合同一品項在所有溫室的本月進庫與出庫加總
+            const summary = {};
+            list.forEach(row => {
+                const key = `${row.item_name} (${row.item_unit})`;
+                if (!summary[key]) {
+                    summary[key] = { in: 0, out: 0 };
+                }
+                summary[key].in += row.month_in;
+                summary[key].out += row.month_out;
+            });
+            
+            // 排序並取得前 10 大有變動的品項
+            const sortedKeys = Object.keys(summary)
+                .sort((a, b) => (summary[b].in + summary[b].out) - (summary[a].in + summary[a].out))
+                .slice(0, 10);
+                
+            const labels = sortedKeys;
+            const inData = sortedKeys.map(k => summary[k].in);
+            const outData = sortedKeys.map(k => summary[k].out);
+            
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '本月累計進庫 (+)',
+                            data: inData,
+                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                            borderColor: 'rgb(16, 185, 129)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: '本月累計出庫 (-)',
+                            data: outData,
+                            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            borderColor: 'rgb(239, 68, 68)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 15
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 下載 Excel 月報表
+        function downloadExcelReport() {
+            const monthInput = document.getElementById('report-month').value;
+            if (!monthInput) {
+                showToast("請選擇報表月份", "error");
+                return;
+            }
+            
+            const [year, month] = monthInput.split('-');
+            
+            // 透過導向觸發瀏覽器下載
+            window.location.href = `/api/report/download?year=${year}&month=${month}`;
+            showToast("正為您準備 Excel 報表，即將下載...");
+        }
+
+    </script>
+</body>
+</html>
