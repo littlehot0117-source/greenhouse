@@ -197,11 +197,12 @@ class GreenhouseAPIRequestHandler(http.server.BaseHTTPRequestHandler):
             sku = payload.get('sku')
             unit = payload.get('unit')
             description = payload.get('description')
+            category = payload.get('category', '物品類')
             
             if not name or not unit:
                 self.send_error_response("品項名稱與單位不能為空")
                 return
-            res = database.add_item(name, sku, unit, description)
+            res = database.add_item(name, sku, unit, description, category)
             self.send_json_response(res)
             
         elif path == "/api/transactions":
@@ -261,12 +262,13 @@ class GreenhouseAPIRequestHandler(http.server.BaseHTTPRequestHandler):
             sku = payload.get('sku')
             unit = payload.get('unit')
             description = payload.get('description')
+            category = payload.get('category', '物品類')
             
             if not name or not unit:
                 self.send_error_response("品項名稱與單位不能為空")
                 return
                 
-            res = database.update_item(int(item_id), name, sku, unit, description)
+            res = database.update_item(int(item_id), name, sku, unit, description, category)
             self.send_json_response(res)
         elif path == "/api/transactions":
             tx_id = query_params.get('id', [None])[0]

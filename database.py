@@ -38,6 +38,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS items (
             id SERIAL PRIMARY KEY,
             name VARCHAR(255) UNIQUE NOT NULL,
+            category VARCHAR(50) NOT NULL DEFAULT '物品類',
             sku VARCHAR(255),
             unit VARCHAR(50) NOT NULL,
             description TEXT
@@ -57,6 +58,14 @@ def init_db():
         );
         """)
         
+        # 自動遷移：檢查 items 是否已有 category 欄位
+        try:
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='items' AND column_name='category';")
+            if not cursor.fetchone():
+                cursor.execute("ALTER TABLE items ADD COLUMN category VARCHAR(50) NOT NULL DEFAULT '物品類';")
+        except Exception as e:
+            print("PostgreSQL Migration items category failed:", e)
+
         cursor.execute("SELECT COUNT(*) FROM greenhouses;")
         row = cursor.fetchone()
         count = list(row.values())[0] if row else 0
@@ -77,6 +86,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
+            category TEXT NOT NULL DEFAULT '物品類',
             sku TEXT,
             unit TEXT NOT NULL,
             description TEXT
@@ -98,6 +108,15 @@ def init_db():
         );
         """)
         
+        # 自動遷移：檢查 items 是否已有 category 欄位
+        try:
+            cursor.execute("PRAGMA table_info(items);")
+            cols = [col[1] for col in cursor.fetchall()]
+            if 'category' not in cols:
+                cursor.execute("ALTER TABLE items ADD COLUMN category TEXT NOT NULL DEFAULT '物品類';")
+        except Exception as e:
+            print("SQLite Migration items category failed:", e)
+
         cursor.execute("SELECT COUNT(*) FROM greenhouses;")
         row = cursor.fetchone()
         count = row[0] if row else 0
@@ -166,18 +185,18 @@ def add_greenhouse(name):
 def get_items():
     return query_all("SELECT * FROM items ORDER BY id;")
 
-def add_item(name, sku, unit, description):
+def add_item(name, sku, unit, description, category="物品類"):
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
-    INSERT INTO items (name, sku, unit, description) 
-    VALUES (%s, %s, %s, %s);
+    INSERT INTO items (name, category, sku, unit, description) 
+    VALUES (%s, %s, %s, %s, %s);
     """ if DATABASE_URL else """
-    INSERT INTO items (name, sku, unit, description) 
-    VALUES (?, ?, ?, ?);
+    INSERT INTO items (name, category, sku, unit, description) 
+    VALUES (?, ?, ?, ?, ?);
     """
     try:
-        cursor.execute(query, (name, sku, unit, description))
+        cursor.execute(query, (name, category, sku, unit, description))
         conn.commit()
         if DATABASE_URL:
             cursor.execute("SELECT currval(pg_get_serial_sequence('items','id'));")
@@ -194,20 +213,20 @@ def add_item(name, sku, unit, description):
     finally:
         conn.close()
 
-def update_item(item_id, name, sku, unit, description):
+def update_item(item_id, name, sku, unit, description, category="物品類"):
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
     UPDATE items 
-    SET name = %s, sku = %s, unit = %s, description = %s 
+    SET name = %s, category = %s, sku = %s, unit = %s, description = %s 
     WHERE id = %s;
     """ if DATABASE_URL else """
     UPDATE items 
-    SET name = ?, sku = ?, unit = ?, description = ? 
+    SET name = ?, category = ?, sku = ?, unit = ?, description = ? 
     WHERE id = ?;
     """
     try:
-        cursor.execute(query, (name, sku, unit, description, item_id))
+        cursor.execute(query, (name, category, sku, unit, description, item_id))
         conn.commit()
         return {"success": True}
     except sqlite3.IntegrityError:

@@ -219,6 +219,7 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">品項名稱</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">品項分類</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">品項編碼 (SKU)</th>
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">單位</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">說明備註</th>
@@ -249,6 +250,14 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">品項名稱 <span class="text-red-500">*</span></label>
                             <input type="text" id="item-name" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="如：有機堆肥、大番茄種子">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">品項分類 <span class="text-red-500">*</span></label>
+                            <select id="item-category" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                                <option value="物品類" selected>物品類</option>
+                                <option value="植物類">植物類</option>
+                                <option value="雜項類">雜項類</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">品項編碼 (SKU/條碼)</label>
@@ -495,6 +504,8 @@
 
             // 預設將登記表單日期設為今天
             setTodayDateTime();
+            // 初始化登記表單按鈕選取樣式
+            toggleTxTypeStyle();
 
             // 預設月報表月份設為當前月
             const now = new Date();
@@ -891,8 +902,19 @@
             items.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition-colors";
+                
+                let catBadge = '';
+                if (item.category === '植物類') {
+                    catBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800"><i class="fa-solid fa-leaf mr-1"></i>植物類</span>`;
+                } else if (item.category === '雜項類') {
+                    catBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-100 text-gray-800"><i class="fa-solid fa-ellipsis mr-1"></i>雜項類</span>`;
+                } else {
+                    catBadge = `<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800"><i class="fa-solid fa-box mr-1"></i>物品類</span>`;
+                }
+
                 tr.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">${item.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center">${catBadge}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${item.sku || '-'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${item.unit}</td>
                     <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">${item.description || '-'}</td>
@@ -918,6 +940,7 @@
                 title.innerText = "新增物品品項";
                 document.getElementById('item-form').reset();
                 document.getElementById('item-id').value = "";
+                document.getElementById('item-category').value = "物品類";
             } else {
                 title.innerText = "修改物品品項";
             }
@@ -937,6 +960,7 @@
             
             document.getElementById('item-id').value = item.id;
             document.getElementById('item-name').value = item.name;
+            document.getElementById('item-category').value = item.category || '物品類';
             document.getElementById('item-sku').value = item.sku || '';
             document.getElementById('item-unit').value = item.unit;
             document.getElementById('item-description').value = item.description || '';
@@ -948,6 +972,7 @@
             
             const id = document.getElementById('item-id').value;
             const name = document.getElementById('item-name').value.trim();
+            const category = document.getElementById('item-category').value;
             const sku = document.getElementById('item-sku').value.trim();
             const unit = document.getElementById('item-unit').value.trim();
             const description = document.getElementById('item-description').value.trim();
@@ -961,7 +986,7 @@
             const url = isEdit ? `/api/items?id=${id}` : '/api/items';
             const method = isEdit ? 'PUT' : 'POST';
             
-            const payload = { name, sku, unit, description };
+            const payload = { name, category, sku, unit, description };
             
             try {
                 const res = await fetch(url, {
@@ -1091,34 +1116,46 @@
 
         // 編輯明細交易
         function editTransaction(txId) {
-            const tx = currentHistoryList.find(t => t.id == txId);
-            if (!tx) return;
-            
-            // 填充下拉選單 (溫室與品項)
-            const ghSelect = document.getElementById('tx-edit-greenhouse');
-            ghSelect.innerHTML = greenhouses.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-            ghSelect.value = tx.greenhouse_id;
-            
-            const itemSelect = document.getElementById('tx-edit-item');
-            itemSelect.innerHTML = items.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
-            itemSelect.value = tx.item_id;
-            
-            document.getElementById('tx-edit-id').value = tx.id;
-            document.getElementById('tx-edit-type').value = tx.transaction_type;
-            document.getElementById('tx-edit-quantity').value = tx.quantity;
-            document.getElementById('tx-edit-operator').value = tx.operator;
-            document.getElementById('tx-edit-note').value = tx.note || '';
-            
-            // 將 datetime 格式 (支援 YYYY-MM-DD HH:MM:SS 與 YYYY-MM-DDTHH:MM:SS) 轉換為 datetime-local 格式 (YYYY-MM-DDTHH:MM)
-            if (tx.created_at) {
-                const formatted = tx.created_at.replace(' ', 'T').substring(0, 16);
-                document.getElementById('tx-edit-date').value = formatted;
+            try {
+                console.log("editTransaction called with ID:", txId);
+                const tx = currentHistoryList.find(t => t.id == txId || String(t.id) === String(txId));
+                if (!tx) {
+                    alert("在明細清單中找不到 ID 為 " + txId + " 的紀錄。\n目前清單筆數：" + currentHistoryList.length);
+                    return;
+                }
+                
+                const ghSelect = document.getElementById('tx-edit-greenhouse');
+                if (!ghSelect) throw new Error("找不到 id 為 tx-edit-greenhouse 的下拉選單元件");
+                ghSelect.innerHTML = greenhouses.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+                ghSelect.value = tx.greenhouse_id;
+                
+                const itemSelect = document.getElementById('tx-edit-item');
+                if (!itemSelect) throw new Error("找不到 id 為 tx-edit-item 的下拉選單元件");
+                itemSelect.innerHTML = items.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+                itemSelect.value = tx.item_id;
+                
+                document.getElementById('tx-edit-id').value = tx.id;
+                document.getElementById('tx-edit-type').value = tx.transaction_type;
+                document.getElementById('tx-edit-quantity').value = tx.quantity;
+                document.getElementById('tx-edit-operator').value = tx.operator;
+                document.getElementById('tx-edit-note').value = tx.note || '';
+                
+                // 將 datetime 格式 (支援 YYYY-MM-DD HH:MM:SS 與 YYYY-MM-DDTHH:MM:SS) 轉換為 datetime-local 格式 (YYYY-MM-DDTHH:MM)
+                if (tx.created_at) {
+                    const formatted = tx.created_at.replace(' ', 'T').substring(0, 16);
+                    document.getElementById('tx-edit-date').value = formatted;
+                }
+                
+                updateTxEditUnit();
+                
+                // 顯示 Modal
+                const modal = document.getElementById('tx-edit-modal');
+                if (!modal) throw new Error("找不到 id 為 tx-edit-modal 的對話框元件");
+                modal.classList.remove('hidden');
+            } catch (err) {
+                alert("編輯明細處理發生錯誤：\n" + err.message + "\n\n請在瀏覽器按 F12 開啟主控台查看詳細訊息。");
+                console.error(err);
             }
-            
-            updateTxEditUnit();
-            
-            // 顯示 Modal
-            document.getElementById('tx-edit-modal').classList.remove('hidden');
         }
 
         // 關閉明細編輯 Modal
