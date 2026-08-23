@@ -1091,7 +1091,7 @@
 
         // 編輯明細交易
         function editTransaction(txId) {
-            const tx = currentHistoryList.find(t => t.id === txId);
+            const tx = currentHistoryList.find(t => t.id == txId);
             if (!tx) return;
             
             // 填充下拉選單 (溫室與品項)
@@ -1109,13 +1109,10 @@
             document.getElementById('tx-edit-operator').value = tx.operator;
             document.getElementById('tx-edit-note').value = tx.note || '';
             
-            // 將 datetime 格式 (YYYY-MM-DD HH:MM:SS) 轉換為 datetime-local 格式 (YYYY-MM-DDTHH:MM)
+            // 將 datetime 格式 (支援 YYYY-MM-DD HH:MM:SS 與 YYYY-MM-DDTHH:MM:SS) 轉換為 datetime-local 格式 (YYYY-MM-DDTHH:MM)
             if (tx.created_at) {
-                const parts = tx.created_at.split(' ');
-                if (parts.length === 2) {
-                    const formatted = `${parts[0]}T${parts[1].substring(0, 5)}`;
-                    document.getElementById('tx-edit-date').value = formatted;
-                }
+                const formatted = tx.created_at.replace(' ', 'T').substring(0, 16);
+                document.getElementById('tx-edit-date').value = formatted;
             }
             
             updateTxEditUnit();
