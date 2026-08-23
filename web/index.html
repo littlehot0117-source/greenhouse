@@ -269,6 +269,65 @@
                     </form>
                 </div>
             </div>
+
+            <!-- 明細交易編輯彈出視窗 -->
+            <div id="tx-edit-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center hidden">
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+                    <div class="bg-emerald-600 px-6 py-4 text-white flex justify-between items-center">
+                        <h3 class="text-lg font-bold">修改進出庫明細</h3>
+                        <button onclick="closeTxEditModal()" class="text-white hover:text-gray-200"><i class="fa-solid fa-times"></i></button>
+                    </div>
+                    <form id="tx-edit-form" onsubmit="saveTxEdit(event)" class="p-6 space-y-4">
+                        <input type="hidden" id="tx-edit-id">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">溫室名稱 <span class="text-red-500">*</span></label>
+                            <select id="tx-edit-greenhouse" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                                <!-- 動態載入 -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">品項名稱 <span class="text-red-500">*</span></label>
+                            <select id="tx-edit-item" required onchange="updateTxEditUnit()" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                                <!-- 動態載入 -->
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1.5">操作類型 <span class="text-red-500">*</span></label>
+                                <select id="tx-edit-type" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                                    <option value="IN">進庫 (IN)</option>
+                                    <option value="OUT">出庫 (OUT)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">數量 <span class="text-red-500">*</span></label>
+                                <div class="relative rounded-md shadow-sm">
+                                    <input type="number" id="tx-edit-quantity" min="0.01" step="any" required class="w-full rounded-md border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        <span class="text-gray-500 sm:text-sm" id="tx-edit-unit-span">單位</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">經手人 <span class="text-red-500">*</span></label>
+                            <input type="text" id="tx-edit-operator" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">備註說明 (用途/原因)</label>
+                            <input type="text" id="tx-edit-note" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">登記日期與時間 <span class="text-red-500">*</span></label>
+                            <input type="datetime-local" id="tx-edit-date" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                        </div>
+                        <div class="pt-4 border-t border-gray-100 flex justify-end gap-3">
+                            <button type="button" onclick="closeTxEditModal()" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">取消</button>
+                            <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700">儲存修改</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </section>
 
         <!-- ================= TAB 4: 進出明細 ================= -->
@@ -325,6 +384,7 @@
                                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">單位</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">經手人</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">管理操作</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200" id="history-table-body">
@@ -954,6 +1014,9 @@
 
         // ================= JAVASCRIPT: TAB 4 進出明細篩選邏輯 =================
 
+        // 儲存目前正在被編輯的交易清單 (快照)
+        let currentHistoryList = [];
+
         // 載入歷史進出庫紀錄
         async function loadHistoryData() {
             const greenhouseId = document.getElementById('filter-greenhouse').value;
@@ -969,8 +1032,8 @@
             
             try {
                 const res = await fetch(`/api/transactions?${query}`);
-                const historyData = await res.json();
-                renderHistoryTable(historyData);
+                currentHistoryList = await res.json();
+                renderHistoryTable(currentHistoryList);
             } catch (err) {
                 console.error(err);
                 showToast("載入交易明細失敗", "error");
@@ -1015,9 +1078,145 @@
                     <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">${tx.item_unit}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${tx.operator}</td>
                     <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title="${tx.note || ''}">${tx.note || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <div class="flex justify-center gap-3">
+                            <button onclick="editTransaction(${tx.id})" class="text-blue-600 hover:text-blue-900 transition flex items-center gap-0.5"><i class="fa-solid fa-pen-to-square"></i> 編輯</button>
+                            <button onclick="deleteTransaction(${tx.id})" class="text-red-600 hover:text-red-900 transition flex items-center gap-0.5"><i class="fa-solid fa-trash-can"></i> 刪除</button>
+                        </div>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        // 編輯明細交易
+        function editTransaction(txId) {
+            const tx = currentHistoryList.find(t => t.id === txId);
+            if (!tx) return;
+            
+            // 填充下拉選單 (溫室與品項)
+            const ghSelect = document.getElementById('tx-edit-greenhouse');
+            ghSelect.innerHTML = greenhouses.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            ghSelect.value = tx.greenhouse_id;
+            
+            const itemSelect = document.getElementById('tx-edit-item');
+            itemSelect.innerHTML = items.map(i => `<option value="${i.id}">${i.name}</option>`).join('');
+            itemSelect.value = tx.item_id;
+            
+            document.getElementById('tx-edit-id').value = tx.id;
+            document.getElementById('tx-edit-type').value = tx.transaction_type;
+            document.getElementById('tx-edit-quantity').value = tx.quantity;
+            document.getElementById('tx-edit-operator').value = tx.operator;
+            document.getElementById('tx-edit-note').value = tx.note || '';
+            
+            // 將 datetime 格式 (YYYY-MM-DD HH:MM:SS) 轉換為 datetime-local 格式 (YYYY-MM-DDTHH:MM)
+            if (tx.created_at) {
+                const parts = tx.created_at.split(' ');
+                if (parts.length === 2) {
+                    const formatted = `${parts[0]}T${parts[1].substring(0, 5)}`;
+                    document.getElementById('tx-edit-date').value = formatted;
+                }
+            }
+            
+            updateTxEditUnit();
+            
+            // 顯示 Modal
+            document.getElementById('tx-edit-modal').classList.remove('hidden');
+        }
+
+        // 關閉明細編輯 Modal
+        function closeTxEditModal() {
+            document.getElementById('tx-edit-modal').classList.add('hidden');
+        }
+
+        // 變更品項時更新單位標籤
+        function updateTxEditUnit() {
+            const itemId = parseInt(document.getElementById('tx-edit-item').value);
+            const found = items.find(i => i.id === itemId);
+            if (found) {
+                document.getElementById('tx-edit-unit-span').innerText = found.unit;
+            }
+        }
+
+        // 儲存明細修改
+        async function saveTxEdit(e) {
+            e.preventDefault();
+            
+            const txId = document.getElementById('tx-edit-id').value;
+            const greenhouseId = parseInt(document.getElementById('tx-edit-greenhouse').value);
+            const itemId = parseInt(document.getElementById('tx-edit-item').value);
+            const transactionType = document.getElementById('tx-edit-type').value;
+            const quantity = parseFloat(document.getElementById('tx-edit-quantity').value);
+            const operator = document.getElementById('tx-edit-operator').value.trim();
+            const note = document.getElementById('tx-edit-note').value.trim();
+            const dateVal = document.getElementById('tx-edit-date').value;
+            
+            if (isNaN(quantity) || quantity <= 0) {
+                showToast("請輸入大於 0 的數量", "error");
+                return;
+            }
+            if (!operator) {
+                showToast("請填寫經手人姓名", "error");
+                return;
+            }
+            
+            // 格式化時間
+            let createdAt = "";
+            if (dateVal) {
+                createdAt = dateVal.replace('T', ' ') + ':00';
+            }
+            
+            const payload = {
+                greenhouse_id: greenhouseId,
+                item_id: itemId,
+                transaction_type: transactionType,
+                quantity: quantity,
+                operator: operator,
+                note: note,
+                created_at: createdAt
+            };
+            
+            try {
+                const res = await fetch(`/api/transactions?id=${txId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    showToast("明細資料修改成功！");
+                    closeTxEditModal();
+                    loadHistoryData();
+                } else {
+                    showToast(result.error || "修改失敗", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("通訊失敗，請重試", "error");
+            }
+        }
+
+        // 刪除交易紀錄
+        async function deleteTransaction(txId) {
+            if (!confirm("確定要刪除此筆進出庫明細嗎？\n刪除後將重新計算庫存數量。")) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/transactions?id=${txId}`, { method: 'DELETE' });
+                const result = await res.json();
+                
+                if (result.success) {
+                    showToast("明細刪除成功！");
+                    loadHistoryData();
+                } else {
+                    showToast(result.error || "刪除失敗", "error");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("通訊失敗，請重試", "error");
+            }
         }
 
         // 清空歷史篩選條件

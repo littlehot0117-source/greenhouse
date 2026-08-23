@@ -268,6 +268,33 @@ class GreenhouseAPIRequestHandler(http.server.BaseHTTPRequestHandler):
                 
             res = database.update_item(int(item_id), name, sku, unit, description)
             self.send_json_response(res)
+        elif path == "/api/transactions":
+            tx_id = query_params.get('id', [None])[0]
+            if not tx_id:
+                self.send_error_response("缺少交易 id 參數")
+                return
+            gh_id = payload.get('greenhouse_id')
+            item_id = payload.get('item_id')
+            tx_type = payload.get('transaction_type')
+            quantity = payload.get('quantity')
+            operator = payload.get('operator')
+            note = payload.get('note')
+            created_at = payload.get('created_at')
+            
+            if not gh_id or not item_id or not tx_type or quantity is None or not operator or not created_at:
+                self.send_error_response("缺少必填的交易修改欄位")
+                return
+            res = database.update_transaction(
+                tx_id=int(tx_id),
+                greenhouse_id=int(gh_id),
+                item_id=int(item_id),
+                transaction_type=tx_type,
+                quantity=float(quantity),
+                operator=operator,
+                note=note,
+                created_at=created_at
+            )
+            self.send_json_response(res)
         else:
             self.send_error_response("無效的 API 端點", 404)
 
@@ -282,6 +309,13 @@ class GreenhouseAPIRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_error_response("缺少品項 id 參數")
                 return
             res = database.delete_item(int(item_id))
+            self.send_json_response(res)
+        elif path == "/api/transactions":
+            tx_id = query_params.get('id', [None])[0]
+            if not tx_id:
+                self.send_error_response("缺少交易 id 參數")
+                return
+            res = database.delete_transaction(int(tx_id))
             self.send_json_response(res)
         else:
             self.send_error_response("無效的 API 端點", 404)

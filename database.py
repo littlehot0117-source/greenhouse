@@ -308,6 +308,91 @@ def get_transactions(greenhouse_id=None, item_id=None, start_date=None, end_date
     
     return query_all(query, tuple(params))
 
+def update_transaction(tx_id, greenhouse_id, item_id, transaction_type, quantity, operator, note, created_at):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # 1. 取得原有交易明細資訊
+        old_tx = query_one("SELECT * FROM transactions WHERE id = ?", (tx_id,))
+        if not old_tx:
+            return {"success": False, "error": "找不到該筆明細紀錄"}
+            
+        old_gh_id = int(old_tx["greenhouse_id"])
+        old_item_id = int(old_tx["item_id"])
+        old_type = old_tx["transaction_type"]
+        old_qty = float(old_tx["quantity"])
+        
+        # 2. 庫存檢查：驗證此修改是否會使庫存變為負數
+        # 如果變更了溫室或品項
+        if old_gh_id != greenhouse_id or old_item_id != item_id:
+            # 檢查舊溫室/品項移除此筆紀錄後是否還有足夠庫存 (如果是 IN，移除會減少庫存；如果是 OUT，移除會增加庫存)
+            old_net = -old_qty if old_type == 'IN' else old_qty
+            old_stock = get_item_stock_level(old_gh_id, old_item_id)
+            if old_stock + old_net < 0:
+                return {"success": False, "error": f"修改失敗：原溫室之物品移除後將導致庫存不足 (剩餘: {old_stock + old_net})"}
+                
+            # 檢查新溫室/品項加入此筆紀錄後是否足夠 (如果是 OUT，新增會減少庫存)
+            new_net = quantity if transaction_type == 'IN' else -quantity
+            new_stock = get_item_stock_level(greenhouse_id, item_id)
+            if new_stock + new_net < 0:
+                return {"success": False, "error": f"修改失敗：新溫室庫存不足以支應此出庫 (目前庫存: {new_stock}，預計出庫: {quantity})"}
+        else:
+            # 同溫室同品項：計算庫存差額
+            old_net = old_qty if old_type == 'IN' else -old_qty
+            new_net = quantity if transaction_type == 'IN' else -quantity
+            diff = new_net - old_net
+            current_stock = get_item_stock_level(greenhouse_id, item_id)
+            if current_stock + diff < 0:
+                return {"success": False, "error": f"修改失敗：修改後將導致庫存不足 (剩餘: {current_stock + diff})"}
+                
+        # 3. 執行更新
+        query = """
+        UPDATE transactions
+        SET greenhouse_id = %s, item_id = %s, transaction_type = %s, quantity = %s, operator = %s, note = %s, created_at = %s
+        WHERE id = %s;
+        """ if DATABASE_URL else """
+        UPDATE transactions
+        SET greenhouse_id = ?, item_id = ?, transaction_type = ?, quantity = ?, operator = ?, note = ?, created_at = ?
+        WHERE id = ?;
+        """
+        cursor.execute(query, (greenhouse_id, item_id, transaction_type, quantity, operator, note, created_at, tx_id))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+
+def delete_transaction(tx_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # 1. 取得交易資訊
+        tx = query_one("SELECT * FROM transactions WHERE id = ?", (tx_id,))
+        if not tx:
+            return {"success": False, "error": "找不到該筆交易紀錄"}
+            
+        gh_id = int(tx["greenhouse_id"])
+        item_id = int(tx["item_id"])
+        tx_type = tx["transaction_type"]
+        qty = float(tx["quantity"])
+        
+        # 2. 庫存檢查 (如果是 IN，刪除會減少庫存，需確認剩餘庫存 >= 刪除量)
+        if tx_type == 'IN':
+            current_stock = get_item_stock_level(gh_id, item_id)
+            if current_stock - qty < 0:
+                return {"success": False, "error": f"無法刪除：刪除此進庫紀錄將導致庫存不足 (目前庫存: {current_stock}，扣除: {qty})"}
+                
+        # 3. 執行刪除
+        query = "DELETE FROM transactions WHERE id = %s;" if DATABASE_URL else "DELETE FROM transactions WHERE id = ?;"
+        cursor.execute(query, (tx_id,))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        conn.close()
+
 # --- 庫存計算與報表 ---
 def get_item_stock_level(greenhouse_id, item_id):
     """計算特定溫室內特定品項的目前庫存量"""
