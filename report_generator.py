@@ -16,7 +16,7 @@ def generate_monthly_report(year, month):
     if not data:
         # 如果沒有資料，建立一個空的 DataFrame 結構
         df_all = pd.DataFrame(columns=[
-            "溫室名稱", "品項名稱", "品項編碼", "單位", 
+            "溫室名稱", "品項名稱", "單位", 
             "期初庫存", "本月進庫", "本月出庫", "期末庫存"
         ])
     else:
@@ -25,7 +25,6 @@ def generate_monthly_report(year, month):
         df_all = df_all.rename(columns={
             "greenhouse_name": "溫室名稱",
             "item_name": "品項名稱",
-            "item_sku": "品項編碼",
             "item_unit": "單位",
             "beginning_stock": "期初庫存",
             "month_in": "本月進庫",
@@ -34,7 +33,14 @@ def generate_monthly_report(year, month):
         })
         # 挑選要呈現的欄位
         df_all = df_all[[
-            "溫室名稱", "品項名稱", "品項編碼", "單位", 
+            "溫室名稱", "品項名稱", "單位", 
+            "期初庫存", "本月進庫", "本期庫存" if "本期庫存" in df_all.columns else "本月進庫", # fallback or standard
+            "本月出庫", "期末庫存"
+        ]]
+        # Wait, the list is: 溫室名稱, 品項名稱, 單位, 期初庫存, 本月進庫, 本月出庫, 期末庫存.
+        # Let's write it exactly:
+        df_all = df_all[[
+            "溫室名稱", "品項名稱", "單位", 
             "期初庫存", "本月進庫", "本月出庫", "期末庫存"
         ]]
         
@@ -61,9 +67,9 @@ def generate_monthly_report(year, month):
                     # 溫室分頁不需要再重複顯示「溫室名稱」欄位
                     df_gh = df_gh.drop(columns=["溫室名稱"])
                 else:
-                    df_gh = pd.DataFrame(columns=["品項名稱", "品項編碼", "單位", "期初庫存", "本月進庫", "本月出庫", "期末庫存"])
+                    df_gh = pd.DataFrame(columns=["品項名稱", "單位", "期初庫存", "本月進庫", "本月出庫", "期末庫存"])
             else:
-                df_gh = pd.DataFrame(columns=["品項名稱", "品項編碼", "單位", "期初庫存", "本月進庫", "本月出庫", "期末庫存"])
+                df_gh = pd.DataFrame(columns=["品項名稱", "單位", "期初庫存", "本月進庫", "本月出庫", "期末庫存"])
                 
             df_gh.to_excel(writer, sheet_name=gh_name, index=False)
             

@@ -436,10 +436,11 @@ def get_greenhouse_stock(greenhouse_id):
         i.name AS item_name,
         i.sku AS item_sku,
         i.unit AS item_unit,
+        i.description AS item_description,
         COALESCE(SUM(CASE WHEN t.transaction_type = 'IN' THEN t.quantity ELSE -t.quantity END), 0) AS current_stock
     FROM items i
     LEFT JOIN transactions t ON t.item_id = i.id AND t.greenhouse_id = ?
-    GROUP BY i.id, i.name, i.sku, i.unit
+    GROUP BY i.id, i.name, i.sku, i.unit, i.description
     HAVING COALESCE(SUM(CASE WHEN t.transaction_type = 'IN' THEN t.quantity ELSE -t.quantity END), 0) > 0
     ORDER BY i.name;
     """
