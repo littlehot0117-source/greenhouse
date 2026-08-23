@@ -72,7 +72,7 @@ def init_db():
         if count == 0:
             cursor.executemany("""
             INSERT INTO greenhouses (name) VALUES (%s);
-            """, [("一號溫室",), ("二號溫室",), ("三號溫室",)])
+            """, [("研究中心",), ("埤子頭",), ("四湖",)])
     else:
         # SQLite 建表語法
         cursor.execute("""
@@ -123,7 +123,7 @@ def init_db():
         if count == 0:
             cursor.executemany("""
             INSERT INTO greenhouses (name) VALUES (?);
-            """, [("一號溫室",), ("二號溫室",), ("三號溫室",)])
+            """, [("研究中心",), ("埤子頭",), ("四湖",)])
         
     conn.commit()
     conn.close()

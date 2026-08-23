@@ -26,9 +26,9 @@ def run_tests():
         print("步驟 2: 驗證預設溫室...")
         ghs = database.get_greenhouses()
         assert len(ghs) == 3, f"預期有3間預設溫室，實際取得 {len(ghs)}"
-        assert ghs[0]["name"] == "一號溫室"
-        assert ghs[1]["name"] == "二號溫室"
-        assert ghs[2]["name"] == "三號溫室"
+        assert ghs[0]["name"] == "研究中心"
+        assert ghs[1]["name"] == "埤子頭"
+        assert ghs[2]["name"] == "四湖"
         print("  - 溫室驗證成功！")
         
         # 4. 新增品項測試
@@ -104,18 +104,18 @@ def run_tests():
         assert len(report_data) == 2, f"預期有 2 條月報表數據，實際取得 {len(report_data)}"
         
         # 驗證一號溫室有機肥料的流動
-        fertilizer_row = next(r for r in report_data if r["greenhouse_name"] == "一號溫室" and r["item_name"] == "有機肥料")
-        assert fertilizer_row["beginning_stock"] == 80.0, f"一號溫室有機肥期初預期 80.0，實際 {fertilizer_row['beginning_stock']}"
-        assert fertilizer_row["month_in"] == 50.0, f"一號溫室有機肥進庫預期 50.0，實際 {fertilizer_row['month_in']}"
-        assert fertilizer_row["month_out"] == 40.0, f"一號溫室有機肥出庫預期 40.0，實際 {fertilizer_row['month_out']}"
-        assert fertilizer_row["ending_stock"] == 90.0, f"一號溫室有機肥期末預期 90.0，實際 {fertilizer_row['ending_stock']}"
+        fertilizer_row = next(r for r in report_data if r["greenhouse_name"] == "研究中心" and r["item_name"] == "有機肥料")
+        assert fertilizer_row["beginning_stock"] == 80.0, f"研究中心有機肥期初預期 80.0，實際 {fertilizer_row['beginning_stock']}"
+        assert fertilizer_row["month_in"] == 50.0, f"研究中心有機肥進庫預期 50.0，實際 {fertilizer_row['month_in']}"
+        assert fertilizer_row["month_out"] == 40.0, f"研究中心有機肥出庫預期 40.0，實際 {fertilizer_row['month_out']}"
+        assert fertilizer_row["ending_stock"] == 90.0, f"研究中心有機肥期末預期 90.0，實際 {fertilizer_row['ending_stock']}"
         
-        # 驗證二號溫室番茄種子的流動
-        seed_row = next(r for r in report_data if r["greenhouse_name"] == "二號溫室" and r["item_name"] == "番茄種子")
-        assert seed_row["beginning_stock"] == 0.0, f"二號溫室種子期初預期 0.0，實際 {seed_row['beginning_stock']}"
-        assert seed_row["month_in"] == 10.0, f"二號溫室種子進庫預期 10.0，實際 {seed_row['month_in']}"
-        assert seed_row["month_out"] == 0.0, f"二號溫室種子出庫預期 0.0，實際 {seed_row['month_out']}"
-        assert seed_row["ending_stock"] == 10.0, f"二號溫室種子期末預期 10.0，實際 {seed_row['ending_stock']}"
+        # 驗證二號溫室防番茄種子的流動
+        seed_row = next(r for r in report_data if r["greenhouse_name"] == "埤子頭" and r["item_name"] == "番茄種子")
+        assert seed_row["beginning_stock"] == 0.0, f"埤子頭種子期初預期 0.0，實際 {seed_row['beginning_stock']}"
+        assert seed_row["month_in"] == 10.0, f"埤子頭種子進庫預期 10.0，實際 {seed_row['month_in']}"
+        assert seed_row["month_out"] == 0.0, f"埤子頭種子出庫預期 0.0，實際 {seed_row['month_out']}"
+        assert seed_row["ending_stock"] == 10.0, f"埤子頭種子期末預期 10.0，實際 {seed_row['ending_stock']}"
         
         print("  - 月報表期初期末流動計算完全正確！")
         
