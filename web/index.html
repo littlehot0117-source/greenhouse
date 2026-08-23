@@ -161,6 +161,13 @@
                         <input type="text" id="tx-operator" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border" placeholder="輸入姓名">
                     </div>
 
+                    <!-- 進出庫日期 (可回溯時間) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">登記日期與時間</label>
+                        <input type="datetime-local" id="tx-date" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
+                        <p class="text-xs text-gray-400 mt-1">預設為當前時間。若要補登過往帳目，請手動調整。</p>
+                    </div>
+
                     <!-- 備註 -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">備註說明 (用途/原因)</label>
@@ -175,13 +182,6 @@
                             <option value="溫室間移轉">
                             <option value="過期報廢">
                         </datalist>
-                    </div>
-
-                    <!-- 進出庫日期 (可回溯時間) -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">登記日期與時間</label>
-                        <input type="datetime-local" id="tx-date" class="w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border">
-                        <p class="text-xs text-gray-400 mt-1">預設為當前時間。若要補登過往帳目，請手動調整。</p>
                     </div>
 
                     <div class="pt-4 border-t border-gray-100 flex gap-4">
